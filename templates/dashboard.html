@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Performance Analytics Dashboard</title>
+    <!-- Google Fonts: Outfit and Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Custom Style Sheet -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Sidebar or Header -->
+        <header class="dashboard-header">
+            <div class="header-logo">
+                <i class="fa-solid fa-graduation-cap"></i>
+                <h1>Student performance <span>Dashboard</span></h1>
+            </div>
+            <div class="header-status">
+                <span class="status-indicator"></span> Live Database Connected
+            </div>
+        </header>
+
+        <!-- Section 1 — Summary Cards -->
+        <section class="summary-cards-grid">
+            <!-- Card 1: Total Students -->
+            <div class="summary-card" id="card-total-students">
+                <div class="card-icon icon-blue">
+                    <i class="fa-solid fa-users"></i>
+                </div>
+                <div class="card-info">
+                    <h3>Total Students</h3>
+                    <p id="total-students" class="card-value">-</p>
+                </div>
+                <div class="card-badge badge-blue">Active Enrollment</div>
+            </div>
+
+            <!-- Card 2: Avg Marks -->
+            <div class="summary-card" id="card-avg-marks">
+                <div class="card-icon icon-emerald">
+                    <i class="fa-solid fa-chart-line"></i>
+                </div>
+                <div class="card-info">
+                    <h3>Average Marks</h3>
+                    <p id="avg-marks" class="card-value">-</p>
+                </div>
+                <div class="card-badge badge-emerald">Class Average</div>
+            </div>
+
+            <!-- Card 3: Avg Attendance -->
+            <div class="summary-card" id="card-avg-attendance">
+                <div class="card-icon icon-purple">
+                    <i class="fa-solid fa-calendar-check"></i>
+                </div>
+                <div class="card-info">
+                    <h3>Avg Attendance</h3>
+                    <p id="avg-attendance" class="card-value">-</p>
+                </div>
+                <div class="card-badge badge-purple">Engagement</div>
+            </div>
+
+            <!-- Card 4: Top Scorer -->
+            <div class="summary-card" id="card-top-scorer">
+                <div class="card-icon icon-amber">
+                    <i class="fa-solid fa-trophy"></i>
+                </div>
+                <div class="card-info">
+                    <h3>Top Scorer</h3>
+                    <p id="top-scorer" class="card-value">-</p>
+                    <span id="top-scorer-marks" class="sub-value">Marks: -</span>
+                </div>
+                <div class="card-badge badge-amber">Highest Performer</div>
+            </div>
+        </section>
+
+        <!-- Section 2 — Charts Grid -->
+        <section class="charts-grid">
+            <!-- Chart 1: Grade Distribution -->
+            <div class="chart-container-card">
+                <div class="chart-header">
+                    <h2>Grade Distribution</h2>
+                    <p>Total count of students grouped by letter grade</p>
+                </div>
+                <div class="chart-wrapper doughnut-wrapper">
+                    <canvas id="gradeChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Chart 2: Department Average Marks -->
+            <div class="chart-container-card">
+                <div class="chart-header">
+                    <h2>Department Average Marks</h2>
+                    <p>Comparison of average marks across academic branches</p>
+                </div>
+                <div class="chart-wrapper">
+                    <canvas id="deptChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Chart 3: Marks Distribution -->
+            <div class="chart-container-card">
+                <div class="chart-header">
+                    <h2>Marks Distribution</h2>
+                    <p>Frequency distribution of students across marks ranges</p>
+                </div>
+                <div class="chart-wrapper">
+                    <canvas id="marksDistChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Chart 4: Attendance vs Marks -->
+            <div class="chart-container-card">
+                <div class="chart-header">
+                    <h2>Attendance vs Marks</h2>
+                    <p>Scatter correlation between attendance percentage and marks</p>
+                </div>
+                <div class="chart-wrapper">
+                    <canvas id="scatterChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <footer class="dashboard-footer">
+            <p>&copy; 2026 Student Performance Analytics. All rights reserved.</p>
+        </footer>
+    </div>
+
+    <!-- Analytics Dashboard Script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            loadSummary();
+            loadGradeChart();
+            loadDeptChart();
+            loadMarksDistChart();
+            loadScatterChart();
+        });
+
+        // Fetch and load summary statistics
+        async function loadSummary() {
+            try {
+                const res = await fetch('/api/summary');
+                const data = await res.json();
+                
+                if (data.error) throw new Error(data.error);
+
+                document.getElementById('total-students').textContent = data.total_students;
+                document.getElementById('avg-marks').textContent = data.avg_marks;
+                document.getElementById('avg-attendance').textContent = data.avg_attendance + '%';
+                document.getElementById('top-scorer').textContent = data.top_scorer;
+                document.getElementById('top-scorer-marks').textContent = `Marks: ${data.top_marks}/100`;
+            } catch (err) {
+                console.error("Error loading summary:", err);
+            }
+        }
+
+        // Fetch and load Grade Distribution Doughnut Chart
+        async function loadGradeChart() {
+            try {
+                const res = await fetch('/api/grade-distribution');
+                const data = await res.json();
+
+                if (data.error) throw new Error(data.error);
+
+                new Chart(document.getElementById('gradeChart'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: data.labels,
+                        datasets: [{
+                            data: data.values,
+                            backgroundColor: [
+                                '#3b82f6', // A (Blue)
+                                '#10b981', // B (Emerald)
+                                '#f59e0b', // C (Amber)
+                                '#f97316', // D (Orange)
+                                '#ef4444'  // F (Red)
+                            ],
+                            borderWidth: 2,
+                            borderColor: '#ffffff',
+                            hoverOffset: 6
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    font: {
+                                        family: 'Inter',
+                                        size: 12
+                                    },
+                                    color: '#4b5563',
+                                    usePointStyle: true,
+                                    padding: 15
+                                }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return ` Students: ${context.formattedValue}`;
+                                    }
+                                }
+                            }
+                        },
+                        cutout: '65%'
+                    }
+                });
+            } catch (err) {
+                console.error("Error loading grade chart:", err);
+            }
+        }
+
+        // Fetch and load Department Average Marks Bar Chart
+        async function loadDeptChart() {
+            try {
+                const res = await fetch('/api/department-avg');
+                const data = await res.json();
+
+                if (data.error) throw new Error(data.error);
+
+                new Chart(document.getElementById('deptChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: data.labels,
+                        datasets: [{
+                            label: 'Average Marks',
+                            data: data.values,
+                            backgroundColor: 'rgba(59, 130, 246, 0.75)',
+                            borderColor: '#3b82f6',
+                            borderWidth: 1.5,
+                            borderRadius: 6,
+                            barPercentage: 0.5
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return ` Avg Score: ${context.formattedValue}`;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                max: 100,
+                                grid: {
+                                    color: '#e5e7eb'
+                                },
+                                ticks: {
+                                    color: '#6b7280',
+                                    font: {
+                                        family: 'Inter',
+                                        size: 11
+                                    }
+                                }
+                            },
+                            x: {
+                                grid: {
+                                    display: false
+                                },
+                                ticks: {
+                                    color: '#4b5563',
+                                    font: {
+                                        family: 'Outfit',
+                                        size: 12,
+                                        weight: '500'
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            } catch (err) {
+                console.error("Error loading department chart:", err);
+            }
+        }
+
+        // Fetch and load Marks Distribution Horizontal Bar Chart
+        async function loadMarksDistChart() {
+            try {
+                const res = await fetch('/api/marks-distribution');
+                const data = await res.json();
+
+                if (data.error) throw new Error(data.error);
+
+                new Chart(document.getElementById('marksDistChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: data.labels,
+                        datasets: [{
+                            label: 'Students Count',
+                            data: data.values,
+                            backgroundColor: 'rgba(139, 92, 246, 0.75)',
+                            borderColor: '#8b5cf6',
+                            borderWidth: 1.5,
+                            borderRadius: 6,
+                            barPercentage: 0.6
+                        }]
+                    },
+                    options: {
+                        indexAxis: 'y',
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
+                        },
+                        scales: {
+                            x: {
+                                beginAtZero: true,
+                                grid: {
+                                    color: '#e5e7eb'
+                                },
+                                ticks: {
+                                    stepSize: 1,
+                                    color: '#6b7280',
+                                    font: {
+                                        family: 'Inter',
+                                        size: 11
+                                    }
+                                }
+                            },
+                            y: {
+                                grid: {
+                                    display: false
+                                },
+                                ticks: {
+                                    color: '#4b5563',
+                                    font: {
+                                        family: 'Inter',
+                                        size: 12
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            } catch (err) {
+                console.error("Error loading marks distribution chart:", err);
+            }
+        }
+
+        // Fetch and load Attendance vs Marks Scatter Chart
+        async function loadScatterChart() {
+            try {
+                const res = await fetch('/api/attendance-vs-marks');
+                const data = await res.json();
+
+                if (data.error) throw new Error(data.error);
+
+                const scatterPoints = data.data.map(student => ({
+                    x: student.attendance,
+                    y: student.marks,
+                    name: student.name
+                }));
+
+                new Chart(document.getElementById('scatterChart'), {
+                    type: 'scatter',
+                    data: {
+                        datasets: [{
+                            label: 'Students',
+                            data: scatterPoints,
+                            backgroundColor: '#f59e0b',
+                            borderColor: '#d97706',
+                            borderWidth: 1,
+                            pointRadius: 6,
+                            pointHoverRadius: 8,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const p = context.raw;
+                                        return ` ${p.name} (Attendance: ${p.x}%, Marks: ${p.y})`;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: 'Attendance (%)',
+                                    color: '#4b5563',
+                                    font: {
+                                        family: 'Outfit',
+                                        size: 12,
+                                        weight: '600'
+                                    }
+                                },
+                                min: 50,
+                                max: 100,
+                                grid: {
+                                    color: '#e5e7eb'
+                                },
+                                ticks: {
+                                    color: '#6b7280'
+                                }
+                            },
+                            y: {
+                                title: {
+                                    display: true,
+                                    text: 'Marks (Score)',
+                                    color: '#4b5563',
+                                    font: {
+                                        family: 'Outfit',
+                                        size: 12,
+                                        weight: '600'
+                                    }
+                                },
+                                min: 30,
+                                max: 100,
+                                grid: {
+                                    color: '#e5e7eb'
+                                },
+                                ticks: {
+                                    color: '#6b7280'
+                                }
+                            }
+                        }
+                    }
+                });
+            } catch (err) {
+                console.error("Error loading scatter chart:", err);
+            }
+        }
+    </script>
+</body>
+</html>
